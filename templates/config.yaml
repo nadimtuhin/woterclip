@@ -65,3 +65,31 @@ personas:
   backlog-groomer:
     path: "personas/backlog-groomer"
     label: "backlog-groomer"
+
+# Webhook Listener Configuration (Phase 2, optional)
+# If enabled, the HTTP listener receives webhooks from GitHub/Linear
+# and queues them for processing via /heartbeat --source/--event-id
+webhook_listener:
+  enabled: false                     # Set to true to enable listener
+  port: ${WEBHOOK_LISTENER_PORT:-3000}
+  host: "0.0.0.0"
+
+  dedup_cache:
+    ttl_hours: 24                    # Cache entry time-to-live
+    backend: "memory"                # "memory" (Phase 2) or "redis" (Phase 3)
+    redis_url: ${REDIS_URL:-null}    # Only for redis backend
+
+  queue:
+    backend: "sqlite"                # "sqlite" (Phase 2) or "redis" (Phase 3)
+    retention_hours: 48              # How long to keep completed/failed events
+
+  max_queue_depth: 100               # Reject if queue exceeds this size
+  request_timeout_ms: 5000           # Request timeout per webhook
+
+  metrics_enabled: true              # Expose GET /metrics endpoint
+
+  # Rate limiting (Phase 2)
+  rate_limit:
+    enabled: true
+    per_source_rpm: 100              # Per source IP, per minute
+    global_rpm: 1000                 # Total requests/minute

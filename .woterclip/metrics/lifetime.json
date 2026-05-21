@@ -1,0 +1,33 @@
+{
+  "total_cycles": 22,
+  "total_issues_processed": 45,
+  "total_issues_completed": 18,
+  "total_duration_seconds": 1800,
+  "avg_cycle_duration_seconds": 82,
+  "personas": {
+    "backend": {
+      "issues_assigned": 15,
+      "completed": 6,
+      "avg_time_seconds": 400,
+      "utilization_pct": 45.0
+    },
+    "frontend": {
+      "issues_assigned": 12,
+      "completed": 5,
+      "avg_time_seconds": 420,
+      "utilization_pct": 40.0
+    },
+    "qa": {
+      "issues_assigned": 8,
+      "completed": 4,
+      "avg_time_seconds": 380,
+      "utilization_pct": 35.0
+    }
+  },
+  "completion_velocity": 0.82,
+  "backend_health": {
+    "avg_latency_ms": 45,
+    "error_count": 0,
+    "availability_pct": 100.0
+  }
+}

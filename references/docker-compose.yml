@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # WoterClip HTTP Listener
+  listener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: woterclip-listener
+    ports:
+      - "${WEBHOOK_LISTENER_PORT:-3000}:3000"
+    environment:
+      - WEBHOOK_LISTENER_PORT=3000
+      - CLAUDE_PLUGIN_ROOT=/opt/plugin
+      - NODE_ENV=production
+    volumes:
+      # Mount WoterClip plugin directory
+      - ${CLAUDE_PLUGIN_ROOT:-.}:/opt/plugin:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Redis for distributed dedup cache (future)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: woterclip-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   restart: unless-stopped
+
+volumes:
+  # redis-data:
+  #   driver: local

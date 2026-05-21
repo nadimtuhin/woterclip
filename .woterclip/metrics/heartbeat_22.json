@@ -1,0 +1,24 @@
+{
+  "cycle": 22,
+  "timestamp": "2026-05-21T14:31:00Z",
+  "duration_seconds": 60,
+  "issues_processed": 1,
+  "issues_completed": 0,
+  "backend": "sqlite",
+  "backend_latency_ms": 50,
+  "subagent_count": 1,
+  "personas": {
+    "backend": {
+      "issues": 1,
+      "in_progress": 0,
+      "in_review": 1,
+      "avg_time_seconds": 60
+    }
+  },
+  "efficiency_score": 0.95,
+  "events": {
+    "heartbeat_events": 1,
+    "persona_events": 1,
+    "adapter_events": 3
+  }
+}

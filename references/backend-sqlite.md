@@ -35,11 +35,28 @@ CREATE TABLE IF NOT EXISTS comments (
     created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS webhook_queue (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id         TEXT    NOT NULL UNIQUE,
+    source           TEXT    NOT NULL CHECK(source IN ('github', 'linear')),
+    event_type       TEXT,
+    status           TEXT    NOT NULL DEFAULT 'pending'
+                         CHECK(status IN ('pending', 'triggered', 'completed', 'failed')),
+    queued_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+    triggered_at     TEXT,
+    completed_at     TEXT,
+    error_message    TEXT,
+    created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_issues_state       ON issues(state);
 CREATE INDEX IF NOT EXISTS idx_issues_state_label ON issues(state_label);
 CREATE INDEX IF NOT EXISTS idx_issues_persona     ON issues(persona);
 CREATE INDEX IF NOT EXISTS idx_comments_issue     ON comments(issue_id);
 CREATE INDEX IF NOT EXISTS idx_comments_author    ON comments(issue_id, author, created_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_status  ON webhook_queue(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_source  ON webhook_queue(source);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_event_id ON webhook_queue(event_id);
 ```
 
 ### Schema Design Notes
@@ -367,6 +384,135 @@ WHERE issue_id = (CAST(SUBSTR('DISPLAY_ID', 5) AS INTEGER))
 **Usage:** Heartbeat Step 7. Fetch number for the current heartbeat cycle. Injected into persona context and used in Step 9 comment body.
 
 **Returns:** Single integer.
+
+---
+
+## Webhook Queue Operations (Phase 2)
+
+### 12. enqueue_webhook(event_id, source, event_type)
+
+**Purpose:** Add a webhook event to the queue for processing.
+
+**SQL:**
+```sql
+INSERT INTO webhook_queue(event_id, source, event_type, status)
+VALUES ('EVENT_ID', 'SOURCE', 'EVENT_TYPE', 'pending');
+```
+
+Where:
+- `EVENT_ID`: Unique identifier (UUID or timestamp-based string)
+- `SOURCE`: 'github' or 'linear'
+- `EVENT_TYPE`: Optional event type string (e.g., 'issues.opened')
+
+**Returns:** Last inserted row ID (can be ignored for this operation).
+
+**Error Handling:** If `event_id` already exists (UNIQUE constraint), returns constraint error. Check via operation 13 first.
+
+---
+
+### 13. webhook_event_exists(event_id)
+
+**Purpose:** Check if a webhook event has been seen before (deduplication).
+
+**SQL:**
+```sql
+SELECT COUNT(*) AS exists
+FROM webhook_queue
+WHERE event_id = 'EVENT_ID';
+```
+
+**Returns:** 0 if not seen, > 0 if duplicate.
+
+**Logic:** Used for deduplication in the HTTP listener. If `exists > 0`, return 409 Conflict without enqueueing.
+
+---
+
+### 14. mark_webhook_triggered(event_id)
+
+**Purpose:** Mark a queued event as triggered (i.e., `/heartbeat` invocation started).
+
+**SQL:**
+```sql
+UPDATE webhook_queue
+SET status = 'triggered', triggered_at = datetime('now')
+WHERE event_id = 'EVENT_ID';
+```
+
+**Returns:** Row count updated (should be 1).
+
+---
+
+### 15. mark_webhook_completed(event_id)
+
+**Purpose:** Mark a triggered event as completed successfully.
+
+**SQL:**
+```sql
+UPDATE webhook_queue
+SET status = 'completed', completed_at = datetime('now')
+WHERE event_id = 'EVENT_ID';
+```
+
+**Returns:** Row count updated (should be 1).
+
+---
+
+### 16. mark_webhook_failed(event_id, error_message)
+
+**Purpose:** Mark a triggered event as failed with error details.
+
+**SQL:**
+```sql
+UPDATE webhook_queue
+SET status = 'failed', completed_at = datetime('now'), error_message = 'ERROR_MSG'
+WHERE event_id = 'EVENT_ID';
+```
+
+Where `ERROR_MSG` is the error text (escaped).
+
+**Returns:** Row count updated (should be 1).
+
+---
+
+### 17. list_pending_webhooks(limit)
+
+**Purpose:** Fetch pending webhooks for batch processing (optional, for admin/debugging).
+
+**SQL:**
+```sql
+SELECT 
+    id,
+    event_id,
+    source,
+    event_type,
+    status,
+    queued_at
+FROM webhook_queue
+WHERE status = 'pending'
+ORDER BY queued_at ASC
+LIMIT LIMIT_VALUE;
+```
+
+**Returns:** List of pending webhook rows.
+
+---
+
+### 18. cleanup_webhook_queue(hours)
+
+**Purpose:** Purge old completed/failed webhook events to prevent table bloat.
+
+**SQL:**
+```sql
+DELETE FROM webhook_queue
+WHERE status IN ('completed', 'failed')
+  AND completed_at < datetime('now', '-HOURS hours');
+```
+
+Where `HOURS` is an integer (default: 48).
+
+**Returns:** Row count deleted.
+
+**Usage:** Run periodically (e.g., daily) to clean up processed events.
 
 ---
 
