@@ -29,7 +29,9 @@
 
 const express = require('express');
 const crypto = require('crypto');
+const path = require('path');
 const { execSync } = require('child_process');
+const { makeWebhookQueue } = require('./webhook-db');
 require('dotenv').config();
 
 // ============================================================================
@@ -44,7 +46,20 @@ const CONFIG = {
   claudeCliPath: process.env.CLAUDE_CLI_PATH || 'claude',
   targetRepo: process.env.TARGET_REPO || '/Users/nadimtuhin/opensource/woterclip',
   logLevel: process.env.LOG_LEVEL || 'info',
+  // SQLite DB path for durable webhook_queue persistence. Defaults to the
+  // target repo's WoterClip database.
+  dbPath:
+    process.env.WOTERCLIP_DB ||
+    path.join(
+      process.env.TARGET_REPO || '/Users/nadimtuhin/opensource/woterclip',
+      '.woterclip',
+      'woterclip.db'
+    ),
 };
+
+// Durable webhook queue (SQLite). Source of truth for dedup + event status;
+// the in-memory SimpleEventCache below is a hot-path optimization layered on top.
+const webhookQueue = makeWebhookQueue(CONFIG.dbPath);
 
 // ============================================================================
 // Event Deduplication Layer (In-Memory Cache)
@@ -380,8 +395,17 @@ app.post('/webhooks/github', (req, res) => {
     const payload = JSON.parse(payloadStr);
     const event = routeGitHubEvent(payload);
     const cacheKey = event.issueNumber.toString();
+    // Durable, per-delivery event id (GitHub guarantees X-GitHub-Delivery unique).
+    const eventId = `github:${deliveryId}`;
+    const eventType = `issues.${event.action}`;
 
-    // Check for duplicates
+    // Durable dedup: a delivery we've already persisted is a true retry.
+    if (deliveryId && webhookQueue.eventExists(eventId)) {
+      log('info', 'GitHub webhook deduplicated (db)', { deliveryId, eventId });
+      return res.json({ status: 'duplicate', cached: true, eventId });
+    }
+
+    // Hot-path dedup: collapse rapid repeat events for the same issue (TTL window).
     if (eventCache.has('github', cacheKey)) {
       const cached = eventCache.get('github', cacheKey);
       log('info', 'GitHub webhook deduplicated', {
@@ -392,6 +416,9 @@ app.post('/webhooks/github', (req, res) => {
       return res.json({ status: cached.status, cached: true });
     }
 
+    // Persist to webhook_queue (status: pending) before triggering.
+    if (deliveryId) webhookQueue.enqueue(eventId, 'github', eventType);
+
     // Mark as queued before triggering (prevent re-trigger within TTL)
     eventCache.set('github', cacheKey, {
       source: 'github',
@@ -399,8 +426,15 @@ app.post('/webhooks/github', (req, res) => {
       status: 'queued',
     });
 
-    // Trigger heartbeat (fire-and-forget in Phase 1, async in Phase 2)
+    // Mark triggered, then invoke heartbeat (fire-and-forget in Phase 1).
+    if (deliveryId) webhookQueue.markTriggered(eventId);
     const result = triggerHeartbeat('github', event.issueNumber, event);
+
+    // Reflect final status in the durable queue.
+    if (deliveryId) {
+      if (result.success) webhookQueue.markCompleted(eventId);
+      else webhookQueue.markFailed(eventId, result.error || 'heartbeat trigger failed');
+    }
 
     // Update cache status
     eventCache.set('github', cacheKey, {
@@ -412,6 +446,7 @@ app.post('/webhooks/github', (req, res) => {
     res.status(result.success ? 202 : 500).json({
       status: result.success ? 'processing' : 'error',
       deliveryId,
+      eventId,
       issueNumber: event.issueNumber,
       ...(result.error && { error: result.error }),
     });
@@ -447,8 +482,18 @@ app.post('/webhooks/linear', (req, res) => {
     const payload = JSON.parse(payloadStr);
     const event = routeLinearEvent(payload);
     const cacheKey = event.issueId; // e.g., WOT-13
+    // Linear has no per-delivery id header; derive a stable id from the signed
+    // timestamp + issue so genuine retries (same signature) dedup in the DB.
+    const eventId = `linear:${event.issueId}:${signatureTimestamp}`;
+    const eventType = `Issue.${event.action}`;
 
-    // Check for duplicates
+    // Durable dedup: an event id we've already persisted is a true retry.
+    if (signatureTimestamp && webhookQueue.eventExists(eventId)) {
+      log('info', 'Linear webhook deduplicated (db)', { eventId });
+      return res.json({ status: 'duplicate', cached: true, eventId });
+    }
+
+    // Hot-path dedup: collapse rapid repeat events for the same issue (TTL window).
     if (eventCache.has('linear', cacheKey)) {
       const cached = eventCache.get('linear', cacheKey);
       log('info', 'Linear webhook deduplicated', {
@@ -458,6 +503,9 @@ app.post('/webhooks/linear', (req, res) => {
       return res.json({ status: cached.status, cached: true });
     }
 
+    // Persist to webhook_queue (status: pending) before triggering.
+    if (signatureTimestamp) webhookQueue.enqueue(eventId, 'linear', eventType);
+
     // Mark as queued before triggering
     eventCache.set('linear', cacheKey, {
       source: 'linear',
@@ -465,8 +513,15 @@ app.post('/webhooks/linear', (req, res) => {
       status: 'queued',
     });
 
-    // Trigger heartbeat
+    // Mark triggered, then invoke heartbeat.
+    if (signatureTimestamp) webhookQueue.markTriggered(eventId);
     const result = triggerHeartbeat('linear', event.issueId, event);
+
+    // Reflect final status in the durable queue.
+    if (signatureTimestamp) {
+      if (result.success) webhookQueue.markCompleted(eventId);
+      else webhookQueue.markFailed(eventId, result.error || 'heartbeat trigger failed');
+    }
 
     // Update cache status
     eventCache.set('linear', cacheKey, {
@@ -478,6 +533,7 @@ app.post('/webhooks/linear', (req, res) => {
     res.status(result.success ? 202 : 500).json({
       status: result.success ? 'processing' : 'error',
       issueId: event.issueId,
+      eventId,
       ...(result.error && { error: result.error }),
     });
   } catch (err) {

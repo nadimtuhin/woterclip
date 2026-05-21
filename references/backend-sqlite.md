@@ -61,25 +61,34 @@ CREATE INDEX IF NOT EXISTS idx_webhook_queue_status  ON webhook_queue(status);
 CREATE INDEX IF NOT EXISTS idx_webhook_queue_source  ON webhook_queue(source);
 CREATE INDEX IF NOT EXISTS idx_webhook_queue_event_id ON webhook_queue(event_id);
 
--- Full-Text Search (FTS5) for title and description
-CREATE VIRTUAL TABLE IF NOT EXISTS issues_fts USING fts5(
-    title, description, content='issues', content_rowid='id'
-);
+-- Full-Text Search (FTS4) for title and description.
+-- NOTE: FTS4 is used (not FTS5) for portability — the sqlite3 CLI in some
+-- environments (verified: 3.44.4 on macOS) is compiled WITHOUT the fts5 module,
+-- which would brick every issues write because the sync triggers reference a
+-- table that failed to create. FTS4 is far more widely compiled in. This is a
+-- standalone index (docid maps to issues.id), not external-content.
+CREATE VIRTUAL TABLE IF NOT EXISTS issues_fts USING fts4(title, description);
 
--- Triggers to keep FTS5 index in sync with issues table
+-- Triggers to keep FTS4 index in sync with issues table (docid = issues.id)
 CREATE TRIGGER IF NOT EXISTS issues_ai AFTER INSERT ON issues BEGIN
-  INSERT INTO issues_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
+  INSERT INTO issues_fts(docid, title, description) VALUES (new.id, new.title, new.description);
 END;
 
 CREATE TRIGGER IF NOT EXISTS issues_ad AFTER DELETE ON issues BEGIN
-  INSERT INTO issues_fts(issues_fts, rowid, title, description) VALUES('delete', old.id, old.title, old.description);
+  DELETE FROM issues_fts WHERE docid = old.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS issues_au AFTER UPDATE ON issues BEGIN
-  INSERT INTO issues_fts(issues_fts, rowid, title, description) VALUES('delete', old.id, old.title, old.description);
-  INSERT INTO issues_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
+  DELETE FROM issues_fts WHERE docid = old.id;
+  INSERT INTO issues_fts(docid, title, description) VALUES (new.id, new.title, new.description);
 END;
 ```
+
+> **FTS module compatibility:** Verify the module exists before relying on it:
+> `sqlite3 :memory: "CREATE VIRTUAL TABLE t USING fts4(a);"` — if this errors with
+> "no such module: fts4", the environment lacks FTS entirely and search must fall
+> back to `LIKE` scans on `title`/`description`. To rebuild the index after a bulk
+> import: `INSERT INTO issues_fts(docid,title,description) SELECT id,title,description FROM issues;`
 
 ### Schema Design Notes
 
@@ -90,8 +99,8 @@ END;
   - Sub-issue priority bump: `priority = MAX(1, parent_priority - 1)` (decrement to raise urgency, floor at 1 to avoid going below urgent).
 - **working_since**: ISO 8601 timestamp when `state_label` was set to `'working'`. Used for stale detection.
 - **WAL mode + busy_timeout**: Enable concurrent reads. Writes serialize but `busy_timeout=30000` (30 seconds) provides sufficient patience for parallel lock acquisition during multi-issue heartbeat dispatch (Step 3). Essential for parallel processing with max_parallel > 1.
-- **FTS5 (Full-Text Search)**: Virtual table `issues_fts` indexes title and description for efficient search. Kept in sync via triggers on INSERT/UPDATE/DELETE. See operation 12 `search_issues()` for query syntax.
-- **Performance Indexes**: Composite and single-column indexes on frequently filtered fields (state, persona, priority, created_at, updated_at) for O(log N) lookups. FTS5 provides O(log N) text search with ranking.
+- **FTS4 (Full-Text Search)**: Virtual table `issues_fts` indexes title and description for efficient search. Kept in sync via triggers on INSERT/UPDATE/DELETE (`docid` = `issues.id`). FTS4 chosen over FTS5 for build portability (see DDL note). See operation 12 `search_issues()` for query syntax.
+- **Performance Indexes**: Composite and single-column indexes on frequently filtered fields (state, persona, priority, created_at, updated_at) for O(log N) lookups. FTS4 provides O(log N) text search.
 
 ---
 
@@ -438,7 +447,7 @@ FROM issues i
 WHERE i.state = 'todo'
   AND i.priority <= 3
   AND i.id IN (
-    SELECT rowid FROM issues_fts
+    SELECT docid FROM issues_fts
     WHERE issues_fts MATCH 'user AND login'
   )
 ORDER BY i.priority ASC, i.created_at DESC
