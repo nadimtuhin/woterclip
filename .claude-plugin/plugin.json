@@ -1,7 +1,7 @@
 {
   "name": "woterclip",
-  "version": "0.1.0",
-  "description": "Linear-backed agent orchestration with persona-based task routing for Claude Code",
+  "version": "0.2.0",
+  "description": "Multi-persona task orchestration with SQLite or Linear backend for Claude Code",
   "author": {
     "name": "Alex Kim"
   },

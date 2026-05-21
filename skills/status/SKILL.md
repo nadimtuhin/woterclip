@@ -13,9 +13,15 @@ Display the current state of WoterClip in this repository: schedule info, last h
 
 ## Status Procedure
 
-### Step 1: Load Config
+### Step 1: Load Config and Backend Adapter
 
 Read `.woterclip/config.yaml`. If missing, report that WoterClip is not initialized and suggest `/woterclip-init`.
+
+Once loaded, extract the `backend` field and load the corresponding adapter reference:
+- If `backend: linear`, load `${CLAUDE_PLUGIN_ROOT}/references/backend-linear.md` and review its `inbox_query()` operation
+- If `backend: sqlite`, load `${CLAUDE_PLUGIN_ROOT}/references/backend-sqlite.md` and review its `inbox_query()` operation
+
+This adapter reference will be used in Step 4 to query the inbox.
 
 ### Step 2: Check Schedule
 
@@ -32,7 +38,9 @@ If no log file exists, report "No heartbeat history found."
 
 ### Step 4: Current Issues
 
-Call `mcp__claude_ai_Linear__list_issues` with `assignee: "me"`. Filter and categorize:
+Call the adapter's `inbox_query()` operation (from the reference loaded in Step 1) to retrieve the current issue set. This operation handles backend-specific inbox queries and returns a normalized issue list.
+
+Filter and categorize the results:
 
 **Since last heartbeat** (issues that changed since the last logged heartbeat timestamp):
 - `✓` Completed issues

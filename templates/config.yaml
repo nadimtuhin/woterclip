@@ -1,10 +1,14 @@
 # WoterClip Configuration
 # Created by /woterclip-init – customize for your repo
-version: 1
+version: 2
 
-# Linear workspace settings
-linear:
+backend: sqlite
+
+board:
   user_name: "{{USER_NAME}}"         # Board user's display name (used in @-mentions)
+
+# only used when backend: linear
+linear:
   team: "{{TEAM}}"                   # Default team for new issues/sub-issues
   project: null                      # Optional: scope inbox to a specific project
 

@@ -1,5 +1,7 @@
 ---
 description: Orchestrator agent for WoterClip. Triages unlabeled Linear issues – applies persona labels, decomposes multi-persona work into sub-issues, and escalates ambiguity to the Board. Never writes code.
+backend: linear
+backend_note: "Requires backend: linear — not compatible with backend: sqlite"
 tools:
   - mcp__claude_ai_Linear__list_issues
   - mcp__claude_ai_Linear__get_issue
