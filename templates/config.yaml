@@ -4,6 +4,9 @@ version: 2
 
 backend: sqlite
 
+# Project-level goal (optional context for all personas)
+project_goal: ""
+
 board:
   user_name: "{{USER_NAME}}"         # Board user's display name (used in @-mentions)
 
@@ -15,6 +18,7 @@ linear:
 # Heartbeat behavior
 heartbeat:
   max_issues_per_heartbeat: 2        # Max issues to work per heartbeat cycle
+  max_parallel: 2                    # Max issues processed simultaneously (1 for linear, 2+ for sqlite)
   stale_lock_hours: 4                # Hours before a lockfile is considered stale
 
   # Quiet hours – skip or limit heartbeats during off-hours
@@ -46,6 +50,12 @@ personas:
   ceo:
     path: "personas/ceo"
     label: "ceo"
+  architect:
+    path: "personas/architect"
+    label: "architect"
+  qa:
+    path: "personas/qa"
+    label: "qa"
   backend:
     path: "personas/backend"
     label: "backend"

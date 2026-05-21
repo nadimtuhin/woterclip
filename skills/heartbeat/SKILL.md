@@ -60,18 +60,46 @@ Check quiet hours: if `quiet_hours.enabled` and current time is within the quiet
      - Invoke `set_state_label(display_id, NULL)` to unlock
      - Post cleanup comment via `save_comment()` explaining stale cleanup
 
-## Step 3: Pick Issue
+## Step 3: Fan-out Dispatch (Parallel Processing)
 
-1. If `--persona <name>` flag is set, filter to only issues matching that persona's label.
-2. Pick the first issue from the sorted inbox.
+Heartbeat now processes multiple issues simultaneously (up to `max_parallel` from config).
+
+1. If `--persona <name>` flag is set, filter inbox to only issues matching that persona's label.
+2. Pick up to `min(inbox.length, max_parallel)` issues from the sorted inbox.
 3. If `--dry-run`, report what would be picked and exit:
    ```
-   Dry run — would pick:
+   Dry run — would pick (parallel, max_parallel=2):
      WOT-XX [backend] "Issue title" (In Progress, High)
-   Queue:
      WOT-YY [frontend] "Other issue" (Todo, Medium)
+   Remaining queue:
+     WOT-ZZ [qa] "Third issue" (Todo, Low)
    ```
 4. If no issues match → delete lockfile and exit: "No issues in queue. Heartbeat complete."
+5. For each chosen issue:
+   - Invoke adapter operation `set_state_label(display_id, 'working')` to lock all simultaneously.
+6. Dispatch one subagent per issue (using Claude Agent tool, `subagent_type: general-purpose`):
+   - Pass issue display_id, full issue record, persona path, adapter path, heartbeat N, repo directory
+   - Subagent runs Steps 4–10 for its assigned issue
+   - Subagent writes one-line summary to `/tmp/wot-hb-{display_id}.jsonl` on completion
+7. Main heartbeat waits for all subagents to complete.
+8. **Orphan cleanup:** After all subagents return, find any issues still `state_label='working'` (crashed subagents):
+   - Invoke adapter operation `set_state_label(id, NULL)` for each orphaned issue
+   - Post cleanup comment explaining crash detection
+9. **Merge temp logs:** Read each `/tmp/wot-hb-{display_id}.jsonl`, merge entries into `.woterclip/heartbeat-log.jsonl`
+10. **Delete temp files:** Remove all `/tmp/wot-hb-*.jsonl` after merge
+
+### Subagent Execution (Steps 4–10)
+
+Each subagent spawned in Step 3 executes Steps 4–10 independently:
+
+- **Receive:** issue display_id, full issue record, persona path, adapter path, heartbeat N, repo directory
+- **Load:** persona SOUL.md, TOOLS.md, config.yaml from the persona path
+- **Execute:** Steps 4–10 exactly as written below
+- **Report:** write one-line JSON summary to `/tmp/wot-hb-{display_id}.jsonl`
+
+The subagent does NOT read the main heartbeat's context; it loads persona files itself in Step 4 (Resolve Persona), matching the non-parallel flow exactly. This ensures parallel and serial heartbeats behave identically at the per-issue level.
+
+---
 
 ## Step 4: Resolve Persona
 
@@ -105,7 +133,7 @@ Read `required_tools` from persona config. For each entry, verify the tool prefi
 2. If `agent-working` is already present (from a previous heartbeat on same issue), proceed without re-locking.
 3. Otherwise, invoke adapter operation `set_state_label(display_id, 'working')` to lock.
 
-## Step 7: Understand Context
+## Step 7: Understand Context & Inject Goals
 
 1. Use adapter operations:
    - `get_issue(display_id)` — read title, description, persona, full issue record
@@ -116,6 +144,12 @@ Read `required_tools` from persona config. For each entry, verify the tool prefi
    - Returns `N` where last agent comment was `Heartbeat #N`
    - Next comment will be `#N+1`
    - If no prior heartbeat, returns `1`
+5. **Goal Injection (new):** Optionally inject project or persona goal into context:
+   - Read persona's `config.yaml` from Step 4; check for `goal:` field
+   - If `goal:` is set (non-empty string): prepend "**Persona goal:** {goal}" to work context
+   - Else, read `.woterclip/config.yaml` root level; check for `project_goal:` field
+   - If `project_goal:` is set (non-empty string): prepend "**Project goal:** {project_goal}" to work context
+   - Else: no goal injection (proceed without goal context)
 
 ## Step 8: Do Work
 
@@ -164,12 +198,17 @@ Use adapter operation `get_issue(display_id)` to read current state, then update
 
 **For blocked issues:** Check if human has provided new direction via adapter operation `has_new_human_comments()`. If yes, agent should wake up on next heartbeat and continue. If no, issue stays blocked until next human input.
 
-## Step 11: Next Issue or Exit
+## Step 11: Cleanup & Exit
 
-1. If issues worked this heartbeat < `max_issues_per_heartbeat`, return to **Step 2** to pick the next issue.
-2. Otherwise, delete lockfile and exit.
-3. If 0 todo issues remain in queue, suggest pausing the schedule.
-4. If 3+ issues are blocked, suggest Board attention rather than more heartbeats.
+1. All subagents from Step 3 have completed (or been cleaned as orphans).
+2. Delete the main heartbeat lockfile (`.woterclip/.heartbeat-lock`).
+3. **Report summary:**
+   - Log: "Heartbeat cycle complete. Processed N issues (M succeeded, K blocked)."
+   - If 0 todo issues remain in queue, suggest pausing the schedule.
+   - If 3+ issues are blocked, suggest Board attention rather than more heartbeats.
+4. Exit.
+
+**Note:** The main heartbeat runs once per invocation, processing up to `max_parallel` issues in parallel (Step 3). For continuous work, schedule `/heartbeat` via `/schedule` command or manual invocation.
 
 ---
 

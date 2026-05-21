@@ -42,3 +42,19 @@ Before marking work as done:
 - [ ] Keyboard navigable, no a11y violations
 - [ ] Loading and error states handled
 - [ ] No hardcoded strings that should be dynamic
+
+## Architect Review Judgment
+
+Before marking an issue done, judge: "Does this work affect project architecture? (new data models, API contracts, inter-service boundaries, file structure changes, new patterns)"
+
+- **YES** → Create architect-labeled sub-issue titled "Arch review: {parent title}". Set parent to `in_review`. Do NOT mark done yet.
+- **NO** → Proceed to QA judgment below.
+- **UNSURE** → Create the architect sub-issue anyway.
+
+## QA Review Judgment
+
+After implementation, judge: "Does this need QA validation? (user-facing changes, API changes, data migrations, anything with acceptance criteria)"
+
+- **YES** → Create qa-labeled sub-issue titled "QA: {parent title}". Set parent to `in_review`. Do NOT mark done yet.
+- **NO** → Mark done.
+- **UNSURE** → Create the QA sub-issue anyway.

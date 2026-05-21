@@ -2,6 +2,16 @@
 
 This reference documents the 11 core operations used by WoterClip to interact with Linear via the Linear MCP tools. Each operation maps directly to Linear MCP tool calls and is extracted from existing patterns in `skills/heartbeat/SKILL.md` and `skills/status/SKILL.md`.
 
+## Concurrency & Rate Limits
+
+**⚠️ Single-threaded by default:** Set `max_parallel: 1` in `.woterclip/config.yaml` (or in the heartbeat init step when choosing Linear backend).
+
+**Why:** Linear API has rate limits. Parallel heartbeats (multiple `/heartbeat` calls simultaneously, or one heartbeat processing multiple issues in parallel) can hit 429 (Too Many Requests) errors.
+
+**Option to override:** If you're willing to accept occasional rate-limit delays, you can increase `max_parallel` up to 2–3, but expect transient 429s. Monitor `.woterclip/heartbeat-log.jsonl` for rate-limit errors and throttle back if they occur.
+
+**SQLite backend:** No rate limits; `max_parallel: 2+` is safe.
+
 ## 1. inbox_query() — List assigned issues
 
 **Purpose:** Fetch all issues assigned to the current user, filtering inbox candidates.

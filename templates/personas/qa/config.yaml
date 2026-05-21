@@ -1,0 +1,6 @@
+label: qa
+role: reviewer
+model: sonnet
+thinking_effort: medium
+max_turns: 100
+escalates_to: architect

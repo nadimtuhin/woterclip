@@ -244,6 +244,34 @@ class TestAdapterReferenceLinks:
         )
 
 
+class TestHeartbeatSkillConcurrency:
+    """Test that heartbeat skill documents concurrency/parallelism features."""
+
+    def test_max_parallel_mentioned(self):
+        """heartbeat SKILL.md mentions max_parallel"""
+        skill = read_skill_file()
+        assert "max_parallel" in skill, (
+            "'max_parallel' not found in heartbeat skill. "
+            "Skill should document the max_parallel concurrency config."
+        )
+
+    def test_parallel_dispatch_mentioned(self):
+        """heartbeat SKILL.md mentions subagent dispatch or fan-out"""
+        skill = read_skill_file()
+        assert any(term in skill for term in ("dispatch", "fan-out", "subagent")), (
+            "No parallel dispatch term ('dispatch', 'fan-out', 'subagent') found in heartbeat skill. "
+            "Skill should document how issues are dispatched to subagents concurrently."
+        )
+
+    def test_orphan_cleanup_mentioned(self):
+        """heartbeat SKILL.md mentions orphan cleanup"""
+        skill = read_skill_file()
+        assert any(term in skill for term in ("orphan", "cleanup")), (
+            "No orphan/cleanup term found in heartbeat skill. "
+            "Skill should document orphan subagent cleanup logic."
+        )
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])

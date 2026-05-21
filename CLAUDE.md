@@ -28,11 +28,20 @@ Both provide 11 identical named operations (create issue, list issues, update, c
 ### Core loop
 
 ```
-/heartbeat → Load Config → Check Inbox (via adapter) → Pick Issue → Resolve Persona
-  → Validate Tools → Lock Issue → Understand Context → Do Work → Report → Update State → Next/Exit
+/heartbeat → Load Config → Check Inbox (via adapter) → Fan-out Dispatch (up to max_parallel issues)
+  → Subagents (each: Resolve Persona → Validate Tools → Lock → Understand Context + Goals → Do Work → Report → Update State)
+  → Orphan Cleanup → Merge Logs → Exit
 ```
 
 The heartbeat is a **skill** (`skills/heartbeat/SKILL.md`), not code. Claude follows it as a procedure using backend adapter tools and repo tools.
+
+### Concurrency model (max_parallel)
+
+Heartbeat processes multiple issues simultaneously via subagent dispatch:
+- **Linear backend:** `max_parallel: 1` (default, rate-limit safe). Override at risk of 429 errors.
+- **SQLite backend:** `max_parallel: 2+` (WAL-safe, no rate limits).
+
+Step 3 spawns one subagent per issue (up to max_parallel), each running Steps 4–10 independently. Subagents load persona files themselves, ensuring parallel and serial flows are isomorphic. After all complete, main loop runs orphan cleanup (detect crashed subagents) and merges temp logs.
 
 ### Persona system
 
@@ -46,9 +55,20 @@ Routing: Issue label → `personas` map in config.yaml → persona directory.
 ### Persona hierarchy
 
 - **Board** (human) – ultimate escalation target
-- **CEO** persona – strategic decisions, prioritization, architecture (label: `ceo`)
+- **CEO** persona – strategy, prioritization, roadmap (label: `ceo`). Escalation target for worker ambiguity.
+- **Architect** persona – architecture review, ADRs, design decisions (label: `architect`). Escalation for structural concerns.
+- **QA** persona – test validation, acceptance criteria (label: `qa`). Adversarial tester, escalates to architect.
 - **Orchestrator** persona – mechanical triage/routing, default for unlabeled issues (label: none, `is_default: true`)
-- **Worker personas** (Backend, Frontend, etc.) – implementation, escalate to CEO
+- **Worker personas** (Backend, Frontend, etc.) – implementation. Create architect/QA sub-issues on-demand (not mandatory).
+
+### Goal injection
+
+Personas receive optional context goals to guide behavior:
+- **Priority:** Persona goal (from `.woterclip/personas/{name}/config.yaml`) > project goal (from root `config.yaml`) > none
+- **Injected in Step 7:** "**Persona goal:** ..." or "**Project goal:** ..." prepended to work context if set
+- **Set during init:** `/woterclip-init` prompts for project-level and per-persona goals (optional)
+
+Goals shape persona priorities without requiring code changes.
 
 ### Key conventions
 
@@ -57,6 +77,7 @@ Routing: Issue label → `personas` map in config.yaml → persona directory.
 - **Lockfile** (`.woterclip/.heartbeat-lock`) prevents concurrent heartbeats. Deleted on every exit.
 - **`${CLAUDE_PLUGIN_ROOT}`** — use for all intra-plugin path references. Never hardcode paths.
 - **Templates use `{{USER_NAME}}` and `{{TEAM}}`** — replaced when scaffolding.
+- **On-demand review:** Workers create architect/QA sub-issues when needed (judgment call in SOUL.md), not automatic.
 
 ## Plugin Component Map
 

@@ -1,0 +1,6 @@
+label: architect
+role: strategist
+model: sonnet
+thinking_effort: high
+max_turns: 50
+escalates_to: ceo

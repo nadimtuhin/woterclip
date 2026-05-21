@@ -125,6 +125,7 @@ Use `mcp__claude_ai_Linear__list_issue_labels` first to check if labels already 
 3. Update `config.yaml`:
    - Set `backend: sqlite` or `backend: linear` based on Step 0 choice
    - Update the `personas` section to match the selected preset — remove entries for personas that weren't scaffolded
+   - **Backend-conditional max_parallel:** If `backend: linear`, write `max_parallel: 1` (rate-limit safety). If `backend: sqlite`, write `max_parallel: 2` (parallelism safe)
 
 4. **If backend = sqlite: Append Backend Note to each persona's TOOLS.md**
 
@@ -145,6 +146,33 @@ Use `mcp__claude_ai_Linear__list_issue_labels` first to check if labels already 
    ```
 
    (Use the exact formatting above to maintain consistency.)
+
+### Step 4a: Prompt for Project Goals (Optional)
+
+Ask the user for project-level and persona-level goals to inject into heartbeat context:
+
+1. **Project Goal (repo-level):**
+   ```
+   What is the overall project goal? (e.g., 'Build a multi-tenant SaaS billing platform')
+   Press Enter to skip.
+   
+   > 
+   ```
+   
+   If provided (not empty), write to `config.yaml` root: `project_goal: "{user_input}"`
+
+2. **Per-Persona Goals:**
+   For each scaffolded persona (except orchestrator and ceo), ask:
+   ```
+   What is the [Backend] persona's specific goal? (press Enter to use project goal)
+   
+   >
+   ```
+   
+   If provided, write to `.woterclip/personas/{name}/config.yaml`: `goal: "{user_input}"`
+   If empty, omit the field (persona will inherit project goal or use none).
+
+**Purpose:** Goals are injected into heartbeat context (Step 7 in heartbeat skill) to guide persona behavior.
 
 ### Step 5: Offer Schedule Setup
 

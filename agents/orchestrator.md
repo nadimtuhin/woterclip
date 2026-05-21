@@ -60,7 +60,8 @@ Call `mcp__claude_ai_Linear__get_issue` and `mcp__claude_ai_Linear__list_comment
 | Component, UI, page, layout, styling, responsive, animation | `frontend` |
 | Deploy, CI/CD, Docker, env vars, infrastructure | `infra` |
 | Test, coverage, E2E, integration test, flaky | `qa` |
-| Strategy, prioritization, roadmap, architecture, cross-cutting | `ceo` |
+| Architecture, system design, ADR, patterns, refactor strategy, tech debt | `architect` |
+| Strategy, prioritization, roadmap, cross-cutting | `ceo` |
 | No clear signals, ambiguous | Escalate to Board |
 
 Check recent similar issues for routing consistency before deciding.
