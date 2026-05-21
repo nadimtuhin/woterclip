@@ -1,0 +1,108 @@
+name: Validate WoterClip
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Validate YAML syntax
+        run: |
+          python3 -c "
+          import yaml
+          import glob
+          import sys
+
+          failed = []
+          for file in glob.glob('**/*.yaml', recursive=True) + glob.glob('**/*.yml', recursive=True):
+              if '.git' in file:
+                  continue
+              try:
+                  with open(file) as f:
+                      yaml.safe_load(f)
+                  print(f'✓ {file}')
+              except Exception as e:
+                  print(f'✗ {file}: {e}')
+                  failed.append(file)
+
+          if failed:
+              print(f'\n{len(failed)} files failed')
+              sys.exit(1)
+          "
+
+      - name: Validate skill and command frontmatter
+        run: |
+          python3 -c "
+          import re
+          import glob
+          import sys
+
+          failed = []
+
+          # Check SKILL.md files
+          for file in glob.glob('skills/*/SKILL.md'):
+              content = open(file).read()
+              if not re.search(r'^---\nname:\s+\S+', content):
+                  print(f'✗ {file}: missing name field')
+                  failed.append(file)
+              elif not re.search(r'^description:\s+\S+', content, re.MULTILINE):
+                  print(f'✗ {file}: missing description field')
+                  failed.append(file)
+              else:
+                  print(f'✓ {file}')
+
+          # Check command .md files
+          for file in glob.glob('commands/*.md'):
+              content = open(file).read()
+              if not re.search(r'^description:\s+\S+', content, re.MULTILINE):
+                  print(f'✗ {file}: missing description field')
+                  failed.append(file)
+              else:
+                  print(f'✓ {file}')
+
+          if failed:
+              print(f'\n{len(failed)} files failed')
+              sys.exit(1)
+          "
+
+      - name: Run tests
+        run: |
+          if [ -f tests/test_heartbeat_skill.py ]; then
+            python3 -m pytest tests/ -v --tb=short
+          else
+            echo "No tests found"
+          fi
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for secrets
+        run: |
+          ! grep -r "private_key\|api_key\|secret" . \
+            --include="*.md" \
+            --include="*.yaml" \
+            --include="*.yml" \
+            --exclude-dir=.git \
+            2>/dev/null | grep -v "reference\|example\|template"
+
+      - name: Check for command injection patterns
+        run: |
+          ! grep -r "execSync.*\`" . \
+            --include="*.js" \
+            --exclude-dir=.git \
+            2>/dev/null
