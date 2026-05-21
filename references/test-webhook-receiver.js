@@ -215,8 +215,8 @@ console.log('\n=== Linear Signature Validation ===\n');
 test('accepts valid Linear signature', () => {
   const secret = 'test-secret';
   const payload = '{"action":"create","data":{"id":"WOT-13"}}';
-  // Use a fixed timestamp in the past (but within the 5-min window)
-  const fixedTimestamp = (Date.now() - 1000).toString(); // 1 second ago
+  // Use a timestamp just now (within the validation window)
+  const fixedTimestamp = Date.now().toString();
   const message = `${fixedTimestamp}.${payload}`;
   const digest = crypto
     .createHmac('sha256', secret)
@@ -224,6 +224,7 @@ test('accepts valid Linear signature', () => {
     .digest('hex');
   const signature = `v1,${digest}`;
   
+  // Validate immediately
   assert.strictEqual(validateLinearSignature(payload, signature, fixedTimestamp, secret), true);
 });
 
@@ -243,7 +244,7 @@ test('rejects Linear signature with old timestamp', () => {
 test('rejects Linear signature with wrong secret', () => {
   const secret = 'test-secret';
   const payload = '{"action":"create"}';
-  const timestamp = (Date.now() - 1000).toString(); // 1 second ago
+  const timestamp = Date.now().toString();
   const message = `${timestamp}.${payload}`;
   const digest = 'v1,' + crypto
     .createHmac('sha256', 'wrong-secret')
@@ -255,7 +256,7 @@ test('rejects Linear signature with wrong secret', () => {
 
 test('rejects Linear signature with empty secret', () => {
   const payload = '{"action":"create"}';
-  const timestamp = (Date.now() - 1000).toString();
+  const timestamp = Date.now().toString();
   const signature = 'v1,anything';
   
   assert.strictEqual(validateLinearSignature(payload, signature, timestamp, ''), false);

@@ -16,3 +16,26 @@
 {"step": "9", "task": "report", "timestamp": "2026-05-21T12:15:05Z", "issue_id": "4", "heartbeat_number": 26, "persona": "backend", "status": "completed", "comment_id": 35}
 {"step": "10", "task": "update-state", "timestamp": "2026-05-21T12:15:06Z", "issue_id": "4", "action": "state-check", "current_state": "done", "current_state_label": null, "update_needed": false, "status": "no-op"}
 {"summary": "heartbeat", "timestamp": "2026-05-21T12:15:07Z", "heartbeat_number": 26, "issue_id": "4", "display_id": "WOT-4", "persona": "backend", "duration_sec": 7, "status": "completed", "actions": ["verified phase 1 deliverables", "validated database schema", "generated completion report"], "next_steps": ["phase 2 implementation work (new issue)"]}
+{"heartbeat": 20, "timestamp": "2026-05-21T12:54:03Z", "issue": "WOT-16", "persona": "architect", "status": "completed", "actions": ["reviewed WOT-12 observability implementation", "identified 7 critical issues", "rejected production readiness", "created rework issue WOT-24", "blocked WOT-12 awaiting fixes"], "duration_sec": 45}
+{"issue": "WOT-16", "heartbeat": 20, "persona": "architect", "status": "completed", "actions": ["reviewed WOT-12 observability implementation", "identified event schema inconsistency", "identified missing heartbeat integration", "identified missing schema versioning", "identified missing validation", "identified unautomated aggregation", "identified missing retention policy", "identified query fragility", "created rework issue WOT-24"], "duration_sec": 45}
+{"heartbeat": 9, "timestamp": "2026-05-21T12:54:59Z", "issue": "WOT-11", "persona": "architect", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:54:59Z", "issue": "WOT-15", "persona": "backend", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:54:59Z", "issue": "WOT-17", "persona": "architect", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:54:59Z", "issue": "WOT-18", "persona": "architect", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:55:00Z", "issue": "WOT-19", "persona": "qa", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:55:00Z", "issue": "WOT-21", "persona": "architect", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:55:00Z", "issue": "WOT-22", "persona": "qa", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:55:00Z", "issue": "WOT-23", "persona": "architect", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": 1, "timestamp": "2026-05-21T12:55:00Z", "issue": "WOT-24", "persona": "backend", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": , "timestamp": "2026-05-21T12:55:00Z", "issue": "", "persona": "", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": , "timestamp": "2026-05-21T12:55:00Z", "issue": "", "persona": "", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": , "timestamp": "2026-05-21T12:55:00Z", "issue": "", "persona": "", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"heartbeat": , "timestamp": "2026-05-21T12:55:00Z", "issue": "", "persona": "", "status": "completed", "actions": ["mocked completion"], "duration_sec": 2}
+{"hb": 1, "ts": "2026-05-21T13:38:02Z", "issue": "WOT-13", "persona": "backend", "state": "in_review", "status": "ok", "duration": 1}
+{"hb": 1, "ts": "2026-05-21T13:38:02Z", "issue": "WOT-14", "persona": "backend", "state": "in_review", "status": "ok", "duration": 1}
+{"hb": 14, "ts": "2026-05-21T13:38:03Z", "issue": "WOT-2", "persona": "backend", "state": "in_review", "status": "ok", "duration": 1}
+{"hb": 1, "ts": "2026-05-21T13:38:03Z", "issue": "WOT-7", "persona": "backend", "state": "in_review", "status": "ok", "duration": 1}
+{"hb": 1, "ts": "2026-05-21T13:38:03Z", "issue": "WOT-9", "persona": "backend", "state": "in_review", "status": "ok", "duration": 1}
+{"hb": 2, "ts": "2026-05-21T13:38:03Z", "issue": "WOT-20", "persona": "architect", "state": "in_review", "status": "ok", "duration": 1}
+{"hb": 1, "ts": "2026-05-21T13:38:03Z", "issue": "", "persona": "", "state": "", "status": "ok", "duration": 1}
+{"hb": 1, "ts": "2026-05-21T13:38:03Z", "issue": "", "persona": "", "state": "", "status": "ok", "duration": 1}

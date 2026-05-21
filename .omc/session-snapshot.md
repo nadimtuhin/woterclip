@@ -1,3 +1,3 @@
-last session: 2026-05-21 18:05
-branch: main (4 dirty files)
-last commit: 40fbf55 feat: implement observability infrastructure for heartbeat
+last session: 2026-05-21 19:51
+branch: main (8 dirty files)
+last commit: 55ca430 feat: increase SQLite busy_timeout to 30s for parallel lock acquisition
