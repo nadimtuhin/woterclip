@@ -8,7 +8,7 @@ Initialize the database with the following SQL. Execute once at setup:
 
 ```sql
 PRAGMA journal_mode=WAL;
-PRAGMA busy_timeout=5000;
+PRAGMA busy_timeout=30000;
 
 CREATE TABLE IF NOT EXISTS issues (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_webhook_queue_event_id ON webhook_queue(event_id)
 - **priority**: Integer mapping: 0=none, 1=urgent, 2=high, 3=medium, 4=low. Lower values = higher urgency.
   - Sub-issue priority bump: `priority = MAX(1, parent_priority - 1)` (decrement to raise urgency, floor at 1 to avoid going below urgent).
 - **working_since**: ISO 8601 timestamp when `state_label` was set to `'working'`. Used for stale detection.
-- **WAL mode + busy_timeout**: Enable concurrent reads. Writes serialize but `busy_timeout=5000` prevents immediate lock errors. Essential for multi-issue parallel processing (PR2).
+- **WAL mode + busy_timeout**: Enable concurrent reads. Writes serialize but `busy_timeout=30000` (30 seconds) provides sufficient patience for parallel lock acquisition during multi-issue heartbeat dispatch (Step 3). Essential for parallel processing with max_parallel > 1.
 
 ---
 
