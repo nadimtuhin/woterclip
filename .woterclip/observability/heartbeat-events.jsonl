@@ -1,0 +1,1 @@
+{"timestamp": "2026-05-21T16:30:00Z", "heartbeat_number": 16, "cycle": "WOT-2", "event_type": "heartbeat.start", "step": null, "task_name": "heartbeat-init", "status": "starting", "issue_id": null, "persona": null, "duration_ms": null, "error": null, "details": {"backend": "sqlite", "max_parallel": 2, "stale_lock_hours": 4}}

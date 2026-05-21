@@ -1,0 +1,68 @@
+# Webhook Configuration Template
+# Include this section in .woterclip/config.yaml after running /woterclip-init with webhook support
+
+webhooks:
+  enabled: false  # Set to true to enable webhook triggers
+  
+  # GitHub webhook configuration
+  github:
+    enabled: false
+    # GitHub webhook secret (set via environment: GITHUB_WEBHOOK_SECRET)
+    # Generate via: GitHub Settings → Webhooks → Create → set secret
+    secret: "${GITHUB_WEBHOOK_SECRET}"
+    
+    # Webhook URL (receiver endpoint)
+    # Must be accessible from GitHub's servers (public or whitelisted)
+    # Example: https://webhook-receiver.example.com/webhook/github
+    webhook_url: ""
+    
+    # Events to subscribe
+    events:
+      - issues.opened
+      - issues.edited
+      - issues.closed
+    
+    # Map GitHub repos to Linear team/project
+    # Format: "github-owner/repo" → "linear-team"
+    repo_mapping:
+      # Example:
+      # "wotai-dev/woterclip": "wotai"
+      # "wotai-dev/pk-2026": "pk"
+  
+  # Linear webhook configuration
+  linear:
+    enabled: false
+    # Linear webhook secret (set via environment: LINEAR_WEBHOOK_SECRET)
+    # Generate via: Linear Settings → Webhooks → Create → copy secret
+    secret: "${LINEAR_WEBHOOK_SECRET}"
+    
+    # Webhook URL (receiver endpoint)
+    # Must be accessible from Linear's servers (public or whitelisted)
+    webhook_url: ""
+    
+    # Linear team ID for webhook subscriptions
+    team_id: "wotai"
+    
+    # Events to subscribe
+    events:
+      - Issue.created
+      - Issue.updated
+      - Issue.archived
+  
+  # Receiver configuration
+  # (Only needed if running receiver on same machine as Claude Code)
+  receiver:
+    enabled: false
+    host: "localhost"
+    port: 3000
+    path: "/webhook"
+    # Authentication token (for securing receiver endpoint)
+    token: "${WEBHOOK_RECEIVER_TOKEN}"
+
+# Integration: Receiver handles event → filters → calls /heartbeat
+# Example: GitHub issue created with "backend" label
+#   1. GitHub sends webhook to receiver
+#   2. Receiver validates signature
+#   3. Receiver extracts issue ID and persona label
+#   4. Receiver calls: /heartbeat --source github --issue-number 42
+#   5. Heartbeat processes issue with backend persona

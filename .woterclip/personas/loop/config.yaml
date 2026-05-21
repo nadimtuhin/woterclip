@@ -1,0 +1,6 @@
+label: loop
+role: coordinator
+model: haiku
+thinking_effort: low
+max_turns: 15
+escalates_to: ceo

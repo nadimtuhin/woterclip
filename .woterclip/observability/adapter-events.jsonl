@@ -1,0 +1,2 @@
+{"timestamp": "2026-05-21T16:30:30Z", "heartbeat_number": 16, "issue_id": 12, "event_type": "adapter.operation", "operation": "get_issue", "backend": "sqlite", "status": "success", "duration_ms": 5, "rows_affected": 1, "error": null, "query": "SELECT ... FROM issues WHERE id=12"}
+{"timestamp": "2026-05-21T16:30:31Z", "heartbeat_number": 16, "issue_id": 12, "event_type": "adapter.operation", "operation": "update_issue", "backend": "sqlite", "status": "success", "duration_ms": 8, "rows_affected": 1, "error": null, "query": "UPDATE issues SET state_label='working' WHERE id=12"}

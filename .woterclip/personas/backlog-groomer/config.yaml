@@ -1,0 +1,9 @@
+label: backlog-groomer
+role: strategist
+model: sonnet
+thinking_effort: medium
+max_turns: 30
+escalates_to: ceo
+required_tools:
+  - mcp__claude_ai_Linear  # Linear MCP (if using Linear backend)
+  # SQLite backend: use Bash tool for all adapter operations
