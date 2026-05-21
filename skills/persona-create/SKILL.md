@@ -85,7 +85,10 @@ Read `.woterclip/config.yaml` and add the new persona to the `personas` map:
 
 ### Step 7: Create Linear Label
 
-Call `mcp__claude_ai_Linear__list_issue_labels` to check if the label exists. If not, create it under the WoterClip group via `mcp__claude_ai_Linear__create_issue_label`.
+Check the `backend` field in `.woterclip/config.yaml`:
+
+- **If `backend: sqlite`:** Skip label creation. Log: "SQLite backend: no label creation required"
+- **If `backend: linear`:** Call `mcp__claude_ai_Linear__list_issue_labels` to check if the label exists. If not, create it under the WoterClip group via `mcp__claude_ai_Linear__create_issue_label`.
 
 ### Step 8: Summary
 
@@ -101,7 +104,8 @@ Files:
   ✓ TOOLS.md
   ✓ config.yaml
 
-Linear label "<label>" created under WoterClip group.
+[Linear backend only] Linear label "<label>" created under WoterClip group.
+[SQLite backend only] SQLite backend: no label creation required.
 
 Customize SOUL.md to match your project's specific needs.
 ```
