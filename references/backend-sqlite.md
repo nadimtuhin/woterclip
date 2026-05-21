@@ -52,11 +52,33 @@ CREATE TABLE IF NOT EXISTS webhook_queue (
 CREATE INDEX IF NOT EXISTS idx_issues_state       ON issues(state);
 CREATE INDEX IF NOT EXISTS idx_issues_state_label ON issues(state_label);
 CREATE INDEX IF NOT EXISTS idx_issues_persona     ON issues(persona);
+CREATE INDEX IF NOT EXISTS idx_issues_priority    ON issues(priority);
+CREATE INDEX IF NOT EXISTS idx_issues_created_at  ON issues(created_at);
+CREATE INDEX IF NOT EXISTS idx_issues_updated_at  ON issues(updated_at);
 CREATE INDEX IF NOT EXISTS idx_comments_issue     ON comments(issue_id);
 CREATE INDEX IF NOT EXISTS idx_comments_author    ON comments(issue_id, author, created_at);
 CREATE INDEX IF NOT EXISTS idx_webhook_queue_status  ON webhook_queue(status);
 CREATE INDEX IF NOT EXISTS idx_webhook_queue_source  ON webhook_queue(source);
 CREATE INDEX IF NOT EXISTS idx_webhook_queue_event_id ON webhook_queue(event_id);
+
+-- Full-Text Search (FTS5) for title and description
+CREATE VIRTUAL TABLE IF NOT EXISTS issues_fts USING fts5(
+    title, description, content='issues', content_rowid='id'
+);
+
+-- Triggers to keep FTS5 index in sync with issues table
+CREATE TRIGGER IF NOT EXISTS issues_ai AFTER INSERT ON issues BEGIN
+  INSERT INTO issues_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
+END;
+
+CREATE TRIGGER IF NOT EXISTS issues_ad AFTER DELETE ON issues BEGIN
+  INSERT INTO issues_fts(issues_fts, rowid, title, description) VALUES('delete', old.id, old.title, old.description);
+END;
+
+CREATE TRIGGER IF NOT EXISTS issues_au AFTER UPDATE ON issues BEGIN
+  INSERT INTO issues_fts(issues_fts, rowid, title, description) VALUES('delete', old.id, old.title, old.description);
+  INSERT INTO issues_fts(rowid, title, description) VALUES (new.id, new.title, new.description);
+END;
 ```
 
 ### Schema Design Notes
@@ -68,6 +90,8 @@ CREATE INDEX IF NOT EXISTS idx_webhook_queue_event_id ON webhook_queue(event_id)
   - Sub-issue priority bump: `priority = MAX(1, parent_priority - 1)` (decrement to raise urgency, floor at 1 to avoid going below urgent).
 - **working_since**: ISO 8601 timestamp when `state_label` was set to `'working'`. Used for stale detection.
 - **WAL mode + busy_timeout**: Enable concurrent reads. Writes serialize but `busy_timeout=30000` (30 seconds) provides sufficient patience for parallel lock acquisition during multi-issue heartbeat dispatch (Step 3). Essential for parallel processing with max_parallel > 1.
+- **FTS5 (Full-Text Search)**: Virtual table `issues_fts` indexes title and description for efficient search. Kept in sync via triggers on INSERT/UPDATE/DELETE. See operation 12 `search_issues()` for query syntax.
+- **Performance Indexes**: Composite and single-column indexes on frequently filtered fields (state, persona, priority, created_at, updated_at) for O(log N) lookups. FTS5 provides O(log N) text search with ranking.
 
 ---
 
@@ -384,6 +408,107 @@ WHERE issue_id = (CAST(SUBSTR('DISPLAY_ID', 5) AS INTEGER))
 **Usage:** Heartbeat Step 7. Fetch number for the current heartbeat cycle. Injected into persona context and used in Step 9 comment body.
 
 **Returns:** Single integer.
+
+---
+
+### 12. search_issues(query, limit, offset)
+
+**Purpose:** Advanced search and filtering with FTS5 full-text search and field operators.
+
+**Query Syntax:** Supports field operators (`state:todo`, `persona:backend`, `priority:high`, `label:architect`), boolean operators (AND, OR, -NOT), and full-text search. See `references/search-syntax.md` for complete syntax documentation.
+
+**SQL Translation Example:**
+
+User query: `state:todo AND priority:high "user login"`
+
+Translates to:
+```sql
+SELECT 
+    'WOT-' || i.id AS display_id,
+    i.id,
+    i.title,
+    i.description,
+    i.persona,
+    i.priority,
+    i.state,
+    i.state_label,
+    i.created_at,
+    i.updated_at
+FROM issues i
+WHERE i.state = 'todo'
+  AND i.priority <= 3
+  AND i.id IN (
+    SELECT rowid FROM issues_fts
+    WHERE issues_fts MATCH 'user AND login'
+  )
+ORDER BY i.priority ASC, i.created_at DESC
+LIMIT 100 OFFSET 0;
+```
+
+**Field Operators (parsed from query string):**
+
+| Operator | Field | Valid Values |
+|----------|-------|--------------|
+| `state:` | state | `todo`, `in_progress`, `done`, `canceled`, `backlog`, `in_review` |
+| `persona:` | persona | any persona name from config |
+| `priority:` | priority | `none` (0), `low` (4), `medium` (3), `high` (2), `urgent` (1) |
+| `label:` | custom label (free-form, stored as comment metadata or future label column) | any string |
+| `parent:` | parent_id | issue display ID (parsed to numeric ID) |
+| `author:` | comment author | `agent`, `human` |
+| `created_after:` | created_at | ISO 8601 date (YYYY-MM-DD) |
+| `created_before:` | created_at | ISO 8601 date (YYYY-MM-DD) |
+| `updated_after:` | updated_at | ISO 8601 date (YYYY-MM-DD) |
+| `updated_before:` | updated_at | ISO 8601 date (YYYY-MM-DD) |
+
+**Boolean Operators:**
+- `AND` — all conditions must match (implicit between tokens)
+- `OR` — at least one condition must match
+- `-` prefix — exclude (NOT)
+- Parentheses for grouping
+
+**Full-Text Search:**
+- Text without operators is searched against `issues_fts(title, description)` using FTS5 MATCH syntax
+- Phrases in double quotes are exact phrase matches
+- Multiple words are implicitly AND'd
+
+**Pagination:**
+- `limit` — max results (default: 100, max: 1000)
+- `offset` — skip N results (for page M: offset = M * limit)
+
+**Response Format (JSON):**
+```json
+{
+  "results": [
+    {
+      "display_id": "WOT-42",
+      "id": 42,
+      "title": "...",
+      "description": "...",
+      "persona": "backend",
+      "priority": 2,
+      "state": "todo",
+      "state_label": null,
+      "created_at": "2026-05-20T10:30:00Z",
+      "updated_at": "2026-05-21T14:22:00Z"
+    }
+  ],
+  "total": 342,
+  "limit": 100,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+**Implementation Notes:**
+- Parser converts query string into SQL WHERE clauses and MATCH conditions
+- State/persona/priority constraints are AND'd together
+- FTS5 queries are restricted to indexed columns (title, description)
+- Result ordering: priority ASC (urgent first), then created_at DESC (newest first)
+- For large result sets (total > 1000), pagination is required
+
+**Usage:** Heartbeat Step 2 (advanced inbox queries), manual issue lookup via skill command, or future dashboard.
+
+**Returns:** JSON object with `results` array, `total` count, and pagination metadata.
 
 ---
 
