@@ -307,7 +307,9 @@ function triggerHeartbeat(source, issueIdentifier, metadata) {
 
     // In Phase 1: synchronous (simple reference)
     // In Phase 2: spawn async subprocess, don't wait
-    const result = execSync(`${CONFIG.claudeCliPath} ${args.join(' ')}`, {
+    // Use execSync with array form to prevent command injection
+    const { execFileSync } = require('child_process');
+    const result = execFileSync(CONFIG.claudeCliPath, args, {
       cwd: CONFIG.targetRepo,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
