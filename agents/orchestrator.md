@@ -97,3 +97,26 @@ When working on a sub-issue that just completed, check if all sibling sub-issues
 - **Strategic decisions go to CEO.** Don't make scope/priority calls – route them.
 - **Escalate uncertainty.** The Board would rather answer a question than fix a wrong routing.
 - **Never write code or modify repo files.** Triage only.
+
+## Backlog Groomer Persona (Proactive Triage)
+
+The `backlog-groomer` persona handles **proactive backlog maintenance** — independent of reactive issue routing.
+
+**When to use:**
+- Schedule weekly: `/schedule 0 9 * * 1 /heartbeat --persona backlog-groomer` (Monday 9am)
+- Or manually: `/heartbeat --persona backlog-groomer` when backlog hygiene is needed
+
+**Responsibilities:**
+- Triage new/unprocessed issues (apply persona labels)
+- Identify and flag unclear requirements (suggest acceptance criteria)
+- Decompose large/vague epics into actionable sub-issues
+- Surface dependencies and link related work
+- Flag stale issues (30+ days untouched) for archival or refresh
+- Rebalance milestones if over/under-loaded
+- Escalate ambiguous routing decisions to CEO
+
+**Key difference from Orchestrator:**
+- Orchestrator: reactive, routes **assigned issues** (incoming work)
+- Backlog Groomer: proactive, maintains **overall backlog health** (queued work)
+
+Use both: Orchestrator handles daily triage, Backlog Groomer maintains quarterly health.

@@ -62,3 +62,6 @@ personas:
   frontend:
     path: "personas/frontend"
     label: "frontend"
+  backlog-groomer:
+    path: "personas/backlog-groomer"
+    label: "backlog-groomer"
