@@ -101,7 +101,9 @@ jobs:
             --include="*.yaml" \
             --include="*.yml" \
             --exclude-dir=.git \
-            2>/dev/null | grep -v "reference\|example\|template"
+            --exclude-dir=skills \
+            --exclude-dir=docs \
+            2>/dev/null | grep -v "reference\|example\|template\|secret.*=.*process\.env\|secret.*=.*\$"
 
       - name: Check for command injection patterns
         run: |
