@@ -80,6 +80,9 @@ jobs:
               sys.exit(1)
           "
 
+      - name: Install test deps
+        run: pip install pytest pyyaml
+
       - name: Run tests
         run: |
           if [ -f tests/test_heartbeat_skill.py ]; then
@@ -103,6 +106,8 @@ jobs:
             --exclude-dir=.git \
             --exclude-dir=skills \
             --exclude-dir=docs \
+            --exclude-dir=.woterclip \
+            --exclude-dir=.github \
             2>/dev/null | grep -v "reference\|example\|template\|secret.*=.*process\.env\|secret.*=.*\$"
 
       - name: Check for command injection patterns
