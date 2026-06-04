@@ -18,6 +18,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install pyyaml
+        run: pip install pyyaml
+
       - name: Validate YAML syntax
         run: |
           python3 -c "
