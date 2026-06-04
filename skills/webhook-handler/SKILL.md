@@ -1,3 +1,8 @@
+---
+name: webhook-handler
+description: Complete webhook integration handler for WoterClip - GitHub and Linear event-driven triggers.
+---
+
 # Webhook Handler Skill
 
 **Date:** 2026-05-21  
